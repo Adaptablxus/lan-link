@@ -27,10 +27,6 @@ and note down its public IP.
 
 SSH into the server and run:
 
-> Shortcut: this whole section is automated in
-> [`tools/setup-relay.sh`](tools/setup-relay.sh) - copy it to the server and run
-> `sudo bash setup-relay.sh`. The manual steps are below if you prefer.
-
 ```sh
 # Download the relay binary
 # (use the aarch64 link instead if the server is ARM - Oracle's free tier is ARM)

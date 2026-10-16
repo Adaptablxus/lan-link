@@ -35,6 +35,10 @@ run/
 # local test tooling (portable launcher + JDKs) - never commit
 tools/
 
+# local-only - not for the public repo
+store/
+versions/PUBLISHING.txt
+
 # java
 
 hs_err_*.log
