@@ -1,0 +1,29 @@
+{
+	"schemaVersion": 1,
+	"id": "lanlink",
+	"version": "${version}",
+	"name": "LAN Link",
+	"description": "Share your Open-to-LAN world over the internet. Adds Online Mode, max players and a public shareable address to the Open to LAN window - no port forwarding needed.",
+	"authors": [
+		"Rishit"
+	],
+	"license": "MIT",
+	"icon": "assets/lanlink/icon.png",
+	"environment": "client",
+	"entrypoints": {
+		"client": [
+			"com.lanlink.client.LanLinkClient"
+		]
+	},
+	"mixins": [
+		{
+			"config": "lanlink.client.mixins.json",
+			"environment": "client"
+		}
+	],
+	"depends": {
+		"fabricloader": ">=0.19.5",
+		"minecraft": "~26.2",
+		"java": ">=25"
+	}
+}

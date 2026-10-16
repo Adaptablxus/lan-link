@@ -1,0 +1,122 @@
+plugins {
+	id 'net.fabricmc.fabric-loom' version "${loom_version}"
+	id 'maven-publish'
+}
+
+repositories {
+	// Add repositories to retrieve artifacts from in here.
+	// You should only use this when depending on other mods because
+	// Loom adds the essential maven repositories to download Minecraft and libraries from automatically.
+	// See https://docs.gradle.org/current/userguide/declaring_repositories.html
+	// for more information about repositories.
+
+	// ViaVersion family for old-client compatibility (see dependencies below).
+	maven {
+		name = "Modrinth"
+		url = "https://api.modrinth.com/maven"
+		content {
+			includeGroup "maven.modrinth"
+		}
+	}
+}
+
+loom {
+	splitEnvironmentSourceSets()
+
+	mods {
+		"lanlink" {
+			sourceSet sourceSets.main
+			sourceSet sourceSets.client
+		}
+	}
+}
+
+dependencies {
+	// To change the versions see the gradle.properties file
+	minecraft "com.mojang:minecraft:${project.minecraft_version}"
+	implementation "net.fabricmc:fabric-loader:${project.loader_version}"
+
+	// QUIC client for the e4mc relay network (QUIClime protocol) - see libs/README.txt.
+	// Shaded into the mod jar below; the codec downloads its native library at runtime.
+	implementation files("libs/quiclime-codec-0.0.74.Final.e4mc.1.jar")
+
+	// Version compatibility for friends on older MC versions (1.8.9 - 26.x):
+	// ViaFabric = ViaVersion for Fabric (the translation engine, LAN worlds supported),
+	// ViaBackwards = lets older clients join, ViaRewind = the 1.8.x era.
+	// `include` nests all three inside our mod jar, so it stays self-contained.
+	// Version compatibility for friends on older MC versions (1.8.9 - 26.x):
+	// ViaFabric = ViaVersion for Fabric (the translation engine, LAN worlds supported),
+	// ViaBackwards = lets older clients join, ViaRewind = the 1.8.x era.
+	// Loom 1.18+ auto-detects mod jars in `implementation` (remapped for dev);
+	// `include` nests all three inside our mod jar, so it stays self-contained.
+	implementation "maven.modrinth:viafabric:0.4.22+186-26.x"
+	include        "maven.modrinth:viafabric:0.4.22+186-26.x"
+	implementation "maven.modrinth:viabackwards:5.12.1"
+	include        "maven.modrinth:viabackwards:5.12.1"
+	implementation "maven.modrinth:viarewind:4.2.0"
+	include        "maven.modrinth:viarewind:4.2.0"
+
+	// Compile-time only: the ViaVersion API used to enforce the LAN screen's
+	// "allow older/newer clients" toggles (the runtime copy is nested inside ViaFabric).
+	compileOnly "maven.modrinth:viaversion:5.12.1"
+
+	// ViaFabric's version-specific sub-mod (viafabric-mc26-2) depends on this Fabric API module,
+	// so it must exist or ViaFabric refuses to start. Only these two tiny modules are needed
+	// (v0 -> v1), not the whole Fabric API bundle.
+	implementation "net.fabricmc.fabric-api:fabric-resource-loader-v0:3.3.20+4fc5413f9e"
+	include        "net.fabricmc.fabric-api:fabric-resource-loader-v0:3.3.20+4fc5413f9e"
+	implementation "net.fabricmc.fabric-api:fabric-resource-loader-v1:2.0.13+9edec1269e"
+	include        "net.fabricmc.fabric-api:fabric-resource-loader-v1:2.0.13+9edec1269e"
+}
+
+processResources {
+	def version = project.version
+	inputs.property "version", version
+
+	filesMatching("fabric.mod.json") {
+		expand "version": version
+	}
+}
+
+tasks.withType(JavaCompile).configureEach {
+	it.options.release = 25
+}
+
+java {
+	// Loom will automatically attach sourcesJar to a RemapSourcesJar task and to the "build" task
+	// if it is present.
+	// If you remove this line, sources will not be generated.
+	withSourcesJar()
+
+	sourceCompatibility = JavaVersion.VERSION_25
+	targetCompatibility = JavaVersion.VERSION_25
+}
+
+jar {
+	def projectName = project.name
+	inputs.property "projectName", projectName
+
+	from("LICENSE") {
+		rename { "${it}_$projectName"}
+	}
+
+	// Shade the QUIC client classes (see libs/README.txt) into the mod jar.
+	from(zipTree("libs/quiclime-codec-0.0.74.Final.e4mc.1.jar"))
+}
+
+// configure the maven publication
+publishing {
+	publications {
+		create("mavenJava", MavenPublication) {
+			from components.java
+		}
+	}
+
+	// See https://docs.gradle.org/current/userguide/publishing_maven.html for information on how to set up publishing.
+	repositories {
+		// Add repositories to publish to here.
+		// Notice: This block does NOT have the same function as the block in the top level.
+		// The repositories here will be used for publishing your artifact, not for
+		// retrieving dependencies.
+	}
+}
