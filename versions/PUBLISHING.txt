@@ -39,11 +39,9 @@ Categories / tags: Utility, Social, Multiplayer, Server Utility.
 versions\1.0.1\lan-link-1.0.1.jar   <- current release (upload this)
 versions\1.0.0\lan-link-1.0.0.jar   <- first release (full build)
 
-Do NOT publish:
-versions\1.0.0\lan-link-1.0.0-early-build.jar
- -> 342 KB early build from before the friend-version (ViaVersion)
-    feature existed. Kept only as an archive. The real 1.0.0 is the
-    ~8 MB jar next to it (rebuilt from the exact 1.0.0 source).
+(The old 342 KB pre-ViaVersion test build was removed from the
+ project/repo on purpose - the original stays archived on the
+ Desktop as lan-link-1.0.0.jar. Never publish it.)
 
 
 =========================================================
@@ -102,15 +100,11 @@ versions\1.0.0\lan-link-1.0.0-early-build.jar
 =========================================================
 6. GITHUB  (github.com)
 =========================================================
-This folder is NOT a git repository yet. If Git is installed
-(check: git --version), run in the project folder:
-
-    git init
-    git add .
-    git commit -m "LAN Link 1.0.1"
-    git branch -M main
-    git remote add origin https://github.com/YOUR-USERNAME/lan-link.git
-    git push -u origin main
+DONE (2026-10-15) - repo is live:
+    https://github.com/Adaptablxus/lan-link
+main = "LAN Link 1.0.1"; Releases v1.0.0 + v1.0.1 both carry
+their jars; the Action builds on every push. (To push again:
+personal access token + clean remote URL; never store the token.)
 
 Repo notes:
  - .gitignore is ready: .gradle/, build/, run/, IDE files and the
