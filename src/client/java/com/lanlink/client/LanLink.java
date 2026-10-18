@@ -200,7 +200,7 @@ public final class LanLink {
 				Minecraft.getInstance().gui.toastManager(),
 				KEEP_ALIVE_TOAST_ID,
 				Component.translatableWithFallback("lanlink.keepalive.toast", "World is still running for friends"),
-				Component.translatableWithFallback("lanlink.keepalive.toast.detail", "Friends stay connected. Rejoin or stop it from the title screen.")
+				Component.translatableWithFallback("lanlink.keepalive.toast.detail", "Friends stay connected. Use the LAN Link button on the title screen to rejoin or stop it.")
 			);
 		} catch (Throwable ignored) {
 			// toasts are cosmetic

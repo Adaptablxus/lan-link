@@ -48,30 +48,34 @@ public class LanLinkBackgroundScreen extends Screen {
 		}
 
 		this.layout.addTitleHeader(TITLE, this.font);
+		int textMax = Math.max(120, this.width - 52);
 		LinearLayout content = this.layout.addToContents(LinearLayout.vertical().spacing(6));
 		content.defaultCellSetting().alignHorizontallyCenter();
 
 		content.addChild(new StringWidget(Component.translatableWithFallback("lanlink.keepalive.world",
-			"World: %s", server.getWorldData().getLevelName()), this.font));
-		this.playersWidget = content.addChild(new StringWidget(playersLine(server), this.font));
+			"World: %s", server.getWorldData().getLevelName()), this.font).setMaxWidth(textMax));
+		this.playersWidget = content.addChild(new StringWidget(playersLine(server), this.font).setMaxWidth(textMax));
 		String address = LanLink.getPublicAddress();
 		if (address != null) {
 			content.addChild(new StringWidget(Component.translatableWithFallback("lanlink.keepalive.address",
-				"Address: %s", address).withStyle(ChatFormatting.GREEN), this.font));
+				"Address: %s", address).withStyle(ChatFormatting.GREEN), this.font).setMaxWidth(textMax));
 			content.addChild(Button.builder(Component.translatableWithFallback("lanlink.keepalive.copy", "Copy address"),
-				b -> this.minecraft.keyboardHandler.setClipboard(address)).width(150).build());
+				b -> this.minecraft.keyboardHandler.setClipboard(address)).width(Math.min(150, textMax)).build());
 		}
 		content.addChild(new StringWidget(Component.translatableWithFallback("lanlink.keepalive.info",
-			"You left the world, but it keeps running for friends. It closes when you stop it here or close Minecraft."), this.font));
+			"You left the world, but it keeps running for friends."), this.font).setMaxWidth(textMax));
+		content.addChild(new StringWidget(Component.translatableWithFallback("lanlink.keepalive.info2",
+			"It closes when you stop it here or close Minecraft."), this.font).setMaxWidth(textMax));
 
 		LinearLayout footer = this.layout.addToFooter(LinearLayout.horizontal().spacing(8));
+		int buttonWidth = Math.max(70, Math.min(150, (this.width - 56) / 3));
 		footer.addChild(Button.builder(REJOIN, b -> {
 			b.active = false;
 			LanLink.rejoinBackgroundWorld(this);
-		}).width(140).build());
+		}).width(buttonWidth).build());
 		this.stopButton = footer.addChild(Button.builder(
-			this.continueAfterStop != null ? STOP_CONTINUE : STOP, b -> this.stopHosting()).width(160).build());
-		footer.addChild(Button.builder(CommonComponents.GUI_BACK, b -> this.onClose()).width(60).build());
+			this.continueAfterStop != null ? STOP_CONTINUE : STOP, b -> this.stopHosting()).width(buttonWidth).build());
+		footer.addChild(Button.builder(CommonComponents.GUI_BACK, b -> this.onClose()).width(buttonWidth).build());
 
 		this.layout.visitWidgets(this::addRenderableWidget);
 		this.repositionElements();

@@ -17,6 +17,11 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 /**
  * Adds a "rejoin the world" button to the title screen while the world is still
  * running for friends in the background (see {@link LanLink} background hosting).
+ *
+ * The button sits in the top-left corner: the only spot the vanilla title screen
+ * keeps free at every window size (logo is centred at y=30, splash is mid-right,
+ * the version line is bottom-left and the copyright is bottom-right). Its width
+ * and label adapt to the window so nothing ever runs off-screen.
  */
 @Mixin(TitleScreen.class)
 public class TitleScreenMixin {
@@ -29,24 +34,34 @@ public class TitleScreenMixin {
 		if (server == null) {
 			return;
 		}
+		Minecraft minecraft = Minecraft.getInstance();
+		Screen self = (Screen) (Object) this;
 		String world = server.getWorldData().getLevelName();
 		if (world.length() > 24) {
 			world = world.substring(0, 23) + "...";
 		}
-		int players = server.getPlayerList().getPlayers().size();
-		Screen self = (Screen) (Object) this;
-		Component label = Component.translatableWithFallback(
-			"lanlink.keepalive.button",
-			"LAN Link: rejoin \"%s\"%s",
-			world,
-			players > 0 ? " (" + players + " online)" : ""
+
+		int buttonWidth = Math.min(200, Math.max(110, self.width / 3));
+		int budget = buttonWidth - 12;
+		Component label = Component.translatableWithFallback("lanlink.keepalive.button", "LAN Link: rejoin \"%s\"", world);
+		if (minecraft.font.width(label) > budget) {
+			label = Component.translatableWithFallback("lanlink.keepalive.button2", "Rejoin \"%s\"", world);
+		}
+		if (minecraft.font.width(label) > budget) {
+			label = Component.translatableWithFallback("lanlink.keepalive.button3", "LAN Link: rejoin");
+		}
+		if (minecraft.font.width(label) > budget) {
+			label = Component.translatableWithFallback("lanlink.keepalive.button4", "LAN Link");
+		}
+
+		Component tooltip = Component.translatableWithFallback(
+			"lanlink.keepalive.button.tooltip",
+			"LAN Link: \"%s\" is still running for friends.\nClick to rejoin, copy the address or stop it.",
+			world
 		);
-		Button button = Button.builder(label, b -> Minecraft.getInstance().gui.setScreen(new LanLinkBackgroundScreen(self)))
-			.bounds(self.width / 2 - 100, self.height / 4 + 168, 200, 20)
-			.tooltip(Tooltip.create(Component.translatableWithFallback(
-				"lanlink.keepalive.button.tooltip",
-				"Your world is still open for friends - friends stay connected while you are at the title screen."
-			)))
+		Button button = Button.builder(label, b -> minecraft.gui.setScreen(new LanLinkBackgroundScreen(self)))
+			.bounds(4, 4, buttonWidth, 20)
+			.tooltip(Tooltip.create(tooltip))
 			.build();
 		((ScreenInvoker) (Object) this).lanlink$invokeAddRenderableWidget(button);
 	}

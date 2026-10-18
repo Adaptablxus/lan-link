@@ -215,27 +215,29 @@ public class LanLinkScreen extends MultiplayerOptionsScreen {
 
 		// Live public address / tunnel status
 		LanLink.Status status = LanLink.getStatus();
+		int textMax = Math.max(140, this.width - 52);
 		if (status == LanLink.Status.ACTIVE && LanLink.getPublicAddress() != null) {
 			String primary = LanLink.getPublicIpAddress() != null ? LanLink.getPublicIpAddress() : LanLink.getPublicAddress();
 			if (LanLink.getPublicIpAddress() == null) {
 				content.addChild(Button.builder(Component.translatableWithFallback("lanlink.copy_address", "Copy address: %s", primary), button ->
 					this.minecraft.keyboardHandler.setClipboard(primary)
-				).width(288).build());
+				).width(Math.min(288, textMax)).build());
 			} else {
 				// Both forms are available: keep them on one row to save vertical space.
 				String alternative = LanLink.getPublicAddress();
 				LinearLayout copyRow = content.addChild(LinearLayout.horizontal().spacing(8));
+				int copyWidth = Math.min(150, (textMax - 8) / 2);
 				copyRow.addChild(Button.builder(Component.translatableWithFallback("lanlink.copy_ip", "Copy Relay IP"), button ->
 					this.minecraft.keyboardHandler.setClipboard(primary)
-				).width(150).tooltip(Tooltip.create(Component.literal(primary))).build());
+				).width(copyWidth).tooltip(Tooltip.create(Component.literal(primary))).build());
 				copyRow.addChild(Button.builder(Component.translatableWithFallback("lanlink.copy_domain", "Copy Relay Domain"), button ->
 					this.minecraft.keyboardHandler.setClipboard(alternative)
-				).width(150).tooltip(Tooltip.create(Component.literal(alternative))).build());
+				).width(copyWidth).tooltip(Tooltip.create(Component.literal(alternative))).build());
 			}
 		} else if (status == LanLink.Status.CONNECTING) {
-			content.addChild(new StringWidget(Component.translatableWithFallback("lanlink.status.connecting", "Getting a public address...").withStyle(ChatFormatting.YELLOW), this.font));
+			content.addChild(new StringWidget(Component.translatableWithFallback("lanlink.status.connecting", "Getting a public address...").withStyle(ChatFormatting.YELLOW), this.font).setMaxWidth(textMax));
 		} else if (status == LanLink.Status.FAILED) {
-			content.addChild(new StringWidget(Component.translatableWithFallback("lanlink.status.failed", "Public address failed: %s", String.valueOf(LanLink.getLastError())).withStyle(ChatFormatting.RED), this.font));
+			content.addChild(new StringWidget(Component.translatableWithFallback("lanlink.status.failed", "Public address failed: %s", String.valueOf(LanLink.getLastError())).withStyle(ChatFormatting.RED), this.font).setMaxWidth(textMax));
 		}
 
 		LinearLayout footer = this.layout.addToFooter(LinearLayout.horizontal().spacing(8));
