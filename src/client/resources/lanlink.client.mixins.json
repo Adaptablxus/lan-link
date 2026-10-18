@@ -4,7 +4,12 @@
 	"compatibilityLevel": "JAVA_25",
 	"client": [
 		"PauseScreenMixin",
-		"IntegratedServerMixin"
+		"IntegratedServerMixin",
+		"MinecraftMixin",
+		"ScreenInvoker",
+		"ServerCommonPacketListenerImplMixin",
+		"TitleScreenMixin",
+		"WorldOpenFlowsMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

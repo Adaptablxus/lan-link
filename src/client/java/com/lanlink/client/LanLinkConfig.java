@@ -27,6 +27,10 @@ public class LanLinkConfig {
 	/** Let friends on newer Minecraft versions join the shared world. */
 	public boolean allowNewerClients = true;
 
+	/** Keep the world running for friends when you leave it (quit to the title screen).
+	 * It then closes only when you stop it from the title screen or close the game. */
+	public boolean keepWorldRunningWhenLeaving = true;
+
 	public static synchronized LanLinkConfig get() {
 		if (instance == null) {
 			instance = load();

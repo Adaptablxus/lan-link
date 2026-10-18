@@ -21,5 +21,21 @@
 	"lanlink.tunnel_failed": "Could not get a public address: %s - friends on your Wi-Fi can still join via LAN.",
 	"lanlink.tunnel_lost": "Public sharing was interrupted: %s",
 	"lanlink.lan_only": "Public sharing is off - only players on your Wi-Fi can join.",
-	"lanlink.start": "Start LAN"
+	"lanlink.start": "Start LAN",
+	"lanlink.keepalive.toast": "World is still running for friends",
+	"lanlink.keepalive.toast.detail": "Friends stay connected. Rejoin or stop it from the title screen.",
+	"lanlink.keepalive.button": "LAN Link: rejoin \"%s\"%s",
+	"lanlink.keepalive.button.tooltip": "Your world is still open for friends. Friends stay connected while you are at the title screen.",
+	"lanlink.keepalive.title": "World open in background",
+	"lanlink.keepalive.world": "World: %s",
+	"lanlink.keepalive.players": "Friends online: %s - they stay connected.",
+	"lanlink.keepalive.players.none": "No players online right now - friends can still join.",
+	"lanlink.keepalive.address": "Address: %s",
+	"lanlink.keepalive.copy": "Copy address",
+	"lanlink.keepalive.info": "You left the world, but it keeps running for friends. It closes when you stop it here or close Minecraft.",
+	"lanlink.keepalive.rejoin": "Rejoin world",
+	"lanlink.keepalive.rejoin.failed": "The background world is no longer running.",
+	"lanlink.keepalive.stop": "Stop and close it",
+	"lanlink.keepalive.stop_continue": "Stop it and continue",
+	"lanlink.keepalive.stopping": "Closing..."
 }

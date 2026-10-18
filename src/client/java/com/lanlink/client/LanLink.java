@@ -2,6 +2,7 @@ package com.lanlink.client;
 
 import com.lanlink.client.tunnel.BoreTunnel;
 import com.lanlink.client.tunnel.QuiclimeTunnel;
+import com.mojang.authlib.GameProfile;
 import java.net.DatagramSocket;
 import java.net.Inet4Address;
 import java.net.Inet6Address;
@@ -11,12 +12,18 @@ import java.net.NetworkInterface;
 import java.util.Enumeration;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.components.toasts.SystemToast;
+import net.minecraft.client.gui.screens.ConnectScreen;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.multiplayer.ServerData;
+import net.minecraft.client.multiplayer.resolver.ServerAddress;
 import net.minecraft.client.server.IntegratedServer;
 import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.HoverEvent;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
+import net.minecraft.server.players.NameAndId;
 
 /**
  * Shared state for the currently published LAN world and its public tunnel.
@@ -121,6 +128,175 @@ public final class LanLink {
 		status = Status.IDLE;
 		publicAddress = null;
 		publicIpAddress = null;
+	}
+
+	// ---- Background hosting: keep the world open after the host leaves it ----
+
+	private static final SystemToast.SystemToastId KEEP_ALIVE_TOAST_ID = new SystemToast.SystemToastId();
+	private static volatile IntegratedServer pendingKeepAlive = null;
+	private static volatile IntegratedServer backgroundServer = null;
+
+	/** True when quitting to the title screen should keep the world (and its LAN session) running. */
+	public static boolean shouldKeepAliveOnQuit() {
+		if (!LanLinkConfig.get().keepWorldRunningWhenLeaving) {
+			return false;
+		}
+		IntegratedServer server = Minecraft.getInstance().getSingleplayerServer();
+		return server != null && !server.isShutdown() && server.isRunning() && server.isPublished();
+	}
+
+	public static void requestKeepAlive(IntegratedServer server) {
+		if (server != null) {
+			pendingKeepAlive = server;
+		}
+	}
+
+	public static void clearKeepAliveRequest() {
+		pendingKeepAlive = null;
+	}
+
+	/**
+	 * Called from {@code Minecraft.disconnect()} in place of stopping the server when the
+	 * owner quits to the title screen. Returns true when the server is kept alive instead
+	 * (the vanilla halt is skipped, friends stay connected).
+	 */
+	public static synchronized boolean tryAdoptForKeepAlive(IntegratedServer server) {
+		if (server == null || pendingKeepAlive != server) {
+			return false;
+		}
+		pendingKeepAlive = null;
+		if (!LanLinkConfig.get().keepWorldRunningWhenLeaving
+			|| server.isShutdown() || !server.isRunning() || !server.isPublished()
+			|| backgroundServer != null) {
+			return false;
+		}
+		backgroundServer = server;
+		LanLinkClient.LOGGER.info("Host left the world - keeping it open for friends (background hosting)");
+		try {
+			// Keep the owner at full permission level for when they rejoin through localhost.
+			GameProfile profile = server.getSingleplayerProfile();
+			if (profile != null) {
+				NameAndId nameAndId = new NameAndId(profile);
+				server.execute(() -> {
+					try {
+						server.getPlayerList().op(nameAndId);
+					} catch (Throwable t) {
+						LanLinkClient.LOGGER.warn("Could not keep owner permissions", t);
+					}
+				});
+			}
+			server.execute(() -> {
+				try {
+					server.saveEverything(false, false, false);
+				} catch (Throwable t) {
+					LanLinkClient.LOGGER.warn("Background save failed", t);
+				}
+			});
+		} catch (Throwable t) {
+			LanLinkClient.LOGGER.warn("Could not set up background hosting", t);
+		}
+		try {
+			SystemToast.add(
+				Minecraft.getInstance().gui.toastManager(),
+				KEEP_ALIVE_TOAST_ID,
+				Component.translatableWithFallback("lanlink.keepalive.toast", "World is still running for friends"),
+				Component.translatableWithFallback("lanlink.keepalive.toast.detail", "Friends stay connected. Rejoin or stop it from the title screen.")
+			);
+		} catch (Throwable ignored) {
+			// toasts are cosmetic
+		}
+		return true;
+	}
+
+	/** True while the given server is the one kept alive in the background. */
+	public static boolean isKeptAlive(IntegratedServer server) {
+		return server != null && backgroundServer == server;
+	}
+
+	/** True while the owner's connection closing must not stop the server (keep-alive in progress or active). */
+	public static boolean shouldProtectFromOwnerStop(IntegratedServer server) {
+		return server != null && (pendingKeepAlive == server || backgroundServer == server);
+	}
+
+	public static boolean hasBackgroundHost() {
+		IntegratedServer server = backgroundServer;
+		return server != null && !server.isShutdown();
+	}
+
+	public static IntegratedServer getBackgroundServer() {
+		return backgroundServer;
+	}
+
+	/** Called from {@code IntegratedServer.stopServer()}: the kept-alive server is gone now. */
+	public static synchronized void onServerStopping(IntegratedServer server) {
+		if (backgroundServer == server) {
+			backgroundServer = null;
+			LanLinkClient.LOGGER.info("Background world closed");
+		}
+	}
+
+	/** Rejoins the kept-alive world through the local LAN address, like a normal multiplayer server. */
+	public static void rejoinBackgroundWorld(Screen parent) {
+		IntegratedServer server = backgroundServer;
+		if (server == null || server.isShutdown() || server.getPort() <= 0) {
+			notifyHost(Component.translatableWithFallback("lanlink.keepalive.rejoin.failed", "The background world is no longer running."));
+			return;
+		}
+		int port = server.getPort();
+		String name = server.getWorldData().getLevelName();
+		ServerData data = new ServerData(name + " (LAN Link)", "127.0.0.1:" + port, ServerData.Type.OTHER);
+		ConnectScreen.startConnecting(parent, Minecraft.getInstance(), new ServerAddress("127.0.0.1", port), data, false, null);
+	}
+
+	/** Stops the kept-alive world; {@code whenStopped} runs on the client thread afterwards. */
+	public static void stopBackgroundHosting(Runnable whenStopped) {
+		IntegratedServer server;
+		synchronized (LanLink.class) {
+			server = backgroundServer;
+		}
+		if (server == null) {
+			if (whenStopped != null) {
+				Minecraft.getInstance().execute(whenStopped);
+			}
+			return;
+		}
+		LanLinkClient.LOGGER.info("Closing the background world...");
+		server.halt(false);
+		Thread waiter = new Thread(() -> {
+			long deadline = System.currentTimeMillis() + 30000L;
+			while (!server.isShutdown() && System.currentTimeMillis() < deadline) {
+				try {
+					Thread.sleep(50L);
+				} catch (InterruptedException e) {
+					Thread.currentThread().interrupt();
+					break;
+				}
+			}
+			if (whenStopped != null) {
+				Minecraft minecraft = Minecraft.getInstance();
+				minecraft.execute(whenStopped);
+			}
+		}, "LAN Link stop waiter");
+		waiter.setDaemon(true);
+		waiter.start();
+	}
+
+	/** Game shutdown: save and stop the kept-alive world before the process exits. */
+	public static void shutDownBackgroundHosting() {
+		IntegratedServer server;
+		synchronized (LanLink.class) {
+			server = backgroundServer;
+			backgroundServer = null;
+		}
+		if (server == null || server.isShutdown()) {
+			return;
+		}
+		LanLinkClient.LOGGER.info("Game is closing - saving and stopping the background world");
+		try {
+			server.halt(true);
+		} catch (Throwable t) {
+			LanLinkClient.LOGGER.warn("Could not stop the background world cleanly", t);
+		}
 	}
 
 	private static final class Session implements QuiclimeTunnel.Listener {

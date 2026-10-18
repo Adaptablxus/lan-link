@@ -22,4 +22,9 @@ public class IntegratedServerMixin {
 	private void lanlink$stopTunnelOnTeardown(CallbackInfo ci) {
 		LanLink.ensureNoTunnel();
 	}
+
+	@Inject(method = "stopServer", at = @At("HEAD"))
+	private void lanlink$onServerStopping(CallbackInfo ci) {
+		LanLink.onServerStopping((IntegratedServer) (Object) this);
+	}
 }
