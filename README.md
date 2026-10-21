@@ -24,6 +24,10 @@ The new Open to LAN window adds:
 - **Max Players** — set the player limit (vanilla LAN is locked to 8).
 - **Client Versions** — let friends on older/newer Minecraft versions join (the mod
   translates between versions automatically — see below).
+- **Keeps hosting after you leave** — quitting to the title screen no longer closes the
+  world: friends stay connected and new friends can still join. A LAN Link button in the
+  title screen's top-left corner lets you rejoin, copy the address, or stop and close the
+  world (see [Leaving the world](#leaving-the-world-keep-hosting-for-friends)).
 - Plus the usual: LAN on/off, port, game mode for other players, allow cheats.
 
 Safety nets built in:
@@ -39,7 +43,8 @@ Safety nets built in:
 - If your internet connection has **IPv6** (most Airtel/Jio/BSNL lines in India do), chat
   also shows a `[2401:...]:port` line. Friends whose internet is also IPv6 connect straight
   to you - no relay, no detour, the lowest possible latency.
-- The tunnel always stops when you close/stop LAN or leave the world.
+- Leaving the world does **not** cut friends off — the LAN session and tunnel stop only when
+  you stop hosting (title-screen button or Stop LAN) or close Minecraft.
 
 ## Friend version support (nothing to install for them)
 
@@ -77,6 +82,28 @@ toggles are remembered in `config/lanlink.json`.
 3. Leave **Public Address: On** (default), adjust Online Mode / Max Players / Client
    Versions if you like, and click **Start LAN**.
 4. The chat posts the address — click it to copy, then send it to your friends.
+5. When you want to take a break, just quit to the title screen: the world keeps running
+   for friends. Rejoin from the LAN Link button (top-left) whenever you want.
+
+## Leaving the world (keep hosting for friends)
+
+Quitting to the title screen keeps the world, the LAN session and the relay tunnel running:
+
+- Friends who are already in the world **stay connected**.
+- Friends can **still join** while you are at the title screen — the address keeps working.
+- A **LAN Link button in the top-left corner of the title screen** opens the
+  **World open in background** screen, where you can:
+  - **Rejoin world** — jump straight back in, with everyone where they were.
+  - **Copy address** — share it with someone new.
+  - **Stop and close it** — saves and closes the world properly for everyone.
+
+The world closes only when you stop it from that screen, use **Stop LAN**, or close
+Minecraft — all of which save the world fully. While it is running in the background,
+trying to open a different world shows the same screen instead, so two worlds never fight
+over the same port.
+
+Prefer the old behaviour (leaving the world closes it)? Set
+`"keepWorldRunningWhenLeaving": false` in `config/lanlink.json`.
 
 ## Connection quality
 
@@ -104,7 +131,8 @@ Asia-Pacific relay, roughly **70 ms** away instead of bore.pub's ~260 ms in New 
   "relayHost": "bore.pub",
   "relayPort": 7835,
   "allowOlderClients": true,
-  "allowNewerClients": true
+  "allowNewerClients": true,
+  "keepWorldRunningWhenLeaving": true
 }
 ```
 
@@ -117,13 +145,17 @@ cannot connect.
 `allowOlderClients` / `allowNewerClients` mirror the Client Versions toggles and are saved
 whenever you apply changes in the Open to LAN window.
 
+`keepWorldRunningWhenLeaving` (default `true`) keeps the world and tunnel alive when you
+quit to the title screen. Set it to `false` if you want the world to close as soon as you
+leave it (the old behaviour).
+
 ## Building
 
 ```sh
 ./gradlew build
 ```
 
-Output jar: `build/libs/lan-link-1.0.1.jar` — drop it into your `mods` folder.
+Output jar: `build/libs/lan-link-1.1.0.jar` — drop it into your `mods` folder.
 
 To test in the dev environment: `./gradlew runClient`.
 
@@ -143,8 +175,24 @@ To test in the dev environment: `./gradlew runClient`.
   ViaRewind) nested inside the mod jar; the Client Versions toggles set ViaVersion's
   blocked-version ranges (`<26.2` / `>26.2`) at runtime when you apply changes.
 - The public address is broadcast to all players and shown in chat with click-to-copy.
+- Quitting to the title screen is intercepted (`Minecraft.disconnectWithSavingScreen` and
+  `Minecraft.disconnect` mixins): instead of halting the integrated server, LAN Link keeps
+  it ticking with the tunnel open, so friends stay connected and can still join. A
+  title-screen button and the "World open in background" screen handle rejoining and
+  stopping.
+- Stopping from the title screen — or closing Minecraft — saves the world and shuts the
+  integrated server and tunnel down cleanly.
 - Tunnel sockets use TCP_NODELAY with 64 KiB copy buffers, so small game packets are
   forwarded immediately instead of being batched by the OS.
+
+## Version history
+
+- **1.1.0** — keep the world running for friends after you leave it; title-screen rejoin
+  button and "World open in background" screen; UI fixes (equal-width buttons, all text
+  clamped to the window).
+- **1.0.1** — the Open to LAN window fits any window size / GUI scale; labels centred.
+- **1.0.0** — first release: public shareable address (e4mc QUIClime relay + bore
+  fallback), Online Mode toggle, Max Players, friend version support 1.9–26.3.
 
 ## Credits
 
