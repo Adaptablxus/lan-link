@@ -2,6 +2,7 @@ package com.lanlink.client.mixin;
 
 import com.lanlink.client.LanLink;
 import com.lanlink.client.LanLinkBackgroundScreen;
+import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.Tooltip;
@@ -42,17 +43,19 @@ public class TitleScreenMixin {
 		}
 
 		int buttonWidth = Math.min(200, Math.max(110, self.width / 3));
-		int budget = buttonWidth - 12;
-		Component label = Component.translatableWithFallback("lanlink.keepalive.button", "LAN Link: rejoin \"%s\"", world);
-		if (minecraft.font.width(label) > budget) {
-			label = Component.translatableWithFallback("lanlink.keepalive.button2", "Rejoin \"%s\"", world);
+		Component dot = Component.literal("● ").withStyle(ChatFormatting.GREEN);
+		int budget = buttonWidth - 12 - minecraft.font.width(dot);
+		Component text = Component.translatableWithFallback("lanlink.keepalive.button", "LAN Link: rejoin \"%s\"", world);
+		if (minecraft.font.width(text) > budget) {
+			text = Component.translatableWithFallback("lanlink.keepalive.button2", "Rejoin \"%s\"", world);
 		}
-		if (minecraft.font.width(label) > budget) {
-			label = Component.translatableWithFallback("lanlink.keepalive.button3", "LAN Link: rejoin");
+		if (minecraft.font.width(text) > budget) {
+			text = Component.translatableWithFallback("lanlink.keepalive.button3", "LAN Link: rejoin");
 		}
-		if (minecraft.font.width(label) > budget) {
-			label = Component.translatableWithFallback("lanlink.keepalive.button4", "LAN Link");
+		if (minecraft.font.width(text) > budget) {
+			text = Component.translatableWithFallback("lanlink.keepalive.button4", "LAN Link");
 		}
+		Component label = dot.copy().append(text);
 
 		Component tooltip = Component.translatableWithFallback(
 			"lanlink.keepalive.button.tooltip",

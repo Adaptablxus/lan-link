@@ -155,7 +155,7 @@ leave it (the old behaviour).
 ./gradlew build
 ```
 
-Output jar: `build/libs/lan-link-1.1.0.jar` — drop it into your `mods` folder.
+Output jar: `build/libs/lan-link-1.1.1.jar` — drop it into your `mods` folder.
 
 To test in the dev environment: `./gradlew runClient`.
 
@@ -187,6 +187,10 @@ To test in the dev environment: `./gradlew runClient`.
 
 ## Version history
 
+- **1.1.1** — UI polish: grouped settings with section headers, live tunnel status
+  (connecting / active / failed), one-click copy with a "Copied!" confirmation, friend
+  names and the same-Wi-Fi address on the background screen, and a green "running"
+  indicator on the title-screen button.
 - **1.1.0** — keep the world running for friends after you leave it; title-screen rejoin
   button and "World open in background" screen; UI fixes (equal-width buttons, all text
   clamped to the window).

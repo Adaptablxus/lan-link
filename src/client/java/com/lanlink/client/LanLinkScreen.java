@@ -4,6 +4,7 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.CycleButton;
 import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.client.gui.components.MultiLineTextWidget;
 import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.layouts.HeaderAndFooterLayout;
@@ -16,6 +17,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.ComponentUtils;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.HttpUtil;
+import net.minecraft.util.Util;
 import net.minecraft.world.level.GameType;
 
 /**
@@ -34,6 +36,8 @@ public class LanLinkScreen extends MultiplayerOptionsScreen {
 	private static final Component ONLINE_MODE = Component.translatableWithFallback("lanlink.online_mode", "Online Mode");
 	private static final Component MAX_PLAYERS = Component.translatableWithFallback("lanlink.max_players", "Max Players");
 	private static final Component PUBLIC_ADDRESS = Component.translatableWithFallback("lanlink.public", "Public Address");
+	private static final Component INTERNET_HEADER = Component.translatableWithFallback("lanlink.internet", "Internet Sharing");
+	private static final Component COPIED = Component.translatableWithFallback("lanlink.copied", "Copied!");
 	private static final Component CLIENT_VERSIONS_HEADER = Component.translatableWithFallback("lanlink.client_versions", "Client Versions");
 	private static final Component ALLOW_OLDER_CLIENTS = Component.translatableWithFallback("lanlink.allow_older", "Allow Older Clients");
 	private static final Component ALLOW_NEWER_CLIENTS = Component.translatableWithFallback("lanlink.allow_newer", "Allow Newer Clients");
@@ -68,6 +72,9 @@ public class LanLinkScreen extends MultiplayerOptionsScreen {
 	private EditBox portEdit;
 	private StringWidget portLabel;
 	private EditBox maxPlayersEdit;
+	private Button copiedButton;
+	private Component copiedOriginal;
+	private long copiedUntil;
 
 	public LanLinkScreen(Screen lastScreen) {
 		super(lastScreen);
@@ -92,6 +99,7 @@ public class LanLinkScreen extends MultiplayerOptionsScreen {
 		}
 		boolean showSectionHeaders = available >= 226;
 		int spacing = available >= 186 ? (showSectionHeaders ? 6 : 4) : 2;
+		int fullWidth = Math.min(200, Math.max(140, this.width - 40));
 		LinearLayout content = this.layout.addToContents(LinearLayout.vertical().spacing(spacing));
 		content.defaultCellSetting().alignHorizontallyCenter();
 
@@ -107,7 +115,7 @@ public class LanLinkScreen extends MultiplayerOptionsScreen {
 		// LAN on/off
 		content.addChild(CycleButton.onOffBuilder(this.wantedScope == MinecraftServer.MultiplayerScope.LAN)
 			.withTooltip(lan -> Tooltip.create((lan ? MinecraftServer.MultiplayerScope.LAN : MinecraftServer.MultiplayerScope.OFF).getTooltip()))
-			.create(Component.translatable("menu.multiplayerOptions.lan"), (button, value) -> {
+			.create(0, 0, fullWidth, 20, Component.translatable("menu.multiplayerOptions.lan"), (button, value) -> {
 				this.wantedScope = value ? MinecraftServer.MultiplayerScope.LAN : MinecraftServer.MultiplayerScope.OFF;
 				this.updatePortControlsState();
 				this.updateApplyChangesActiveState();
@@ -117,7 +125,8 @@ public class LanLinkScreen extends MultiplayerOptionsScreen {
 		LinearLayout portRow = LinearLayout.horizontal().spacing(6);
 		portRow.defaultCellSetting().alignVerticallyMiddle();
 		this.portLabel = portRow.addChild(new StringWidget(Component.translatable("lanServer.port"), this.font));
-		this.portEdit = portRow.addChild(new EditBox(this.font, 200, 20, Component.translatable("lanServer.port")));
+		int portEditWidth = Math.max(60, fullWidth - this.font.width(Component.translatable("lanServer.port")) - 6);
+		this.portEdit = portRow.addChild(new EditBox(this.font, portEditWidth, 20, Component.translatable("lanServer.port")));
 		this.portEdit.setResponder(value -> {
 			this.setPortError(this.tryParsePort(value));
 			this.updateApplyChangesActiveState();
@@ -203,12 +212,15 @@ public class LanLinkScreen extends MultiplayerOptionsScreen {
 			}));
 
 		// Public sharing
+		if (showSectionHeaders) {
+			content.addChild(new StringWidget(INTERNET_HEADER, this.font));
+		}
 		this.sharePublic = LanLink.isPublicSharingPreferred();
 		this.initialSharePublic = this.sharePublic;
 		content.addChild(CycleButton.onOffBuilder(this.sharePublic)
 			.withTooltip(value -> Tooltip.create(Component.translatableWithFallback("lanlink.public.tooltip",
 				"Gives you a shareable internet address so friends anywhere can join. No port forwarding needed.")))
-			.create(PUBLIC_ADDRESS, (button, value) -> {
+			.create(0, 0, fullWidth, 20, PUBLIC_ADDRESS, (button, value) -> {
 				this.sharePublic = value;
 				this.updateApplyChangesActiveState();
 			}));
@@ -216,33 +228,61 @@ public class LanLinkScreen extends MultiplayerOptionsScreen {
 		// Live public address / tunnel status
 		LanLink.Status status = LanLink.getStatus();
 		int textMax = Math.max(140, this.width - 52);
-		if (status == LanLink.Status.ACTIVE && LanLink.getPublicAddress() != null) {
-			String primary = LanLink.getPublicIpAddress() != null ? LanLink.getPublicIpAddress() : LanLink.getPublicAddress();
-			if (LanLink.getPublicIpAddress() == null) {
-				content.addChild(Button.builder(Component.translatableWithFallback("lanlink.copy_address", "Copy address: %s", primary), button ->
-					this.minecraft.keyboardHandler.setClipboard(primary)
-				).width(Math.min(288, textMax)).build());
+		if (!this.sharePublic) {
+			content.addChild(new MultiLineTextWidget(Component.translatableWithFallback("lanlink.status.off",
+				"Public sharing is off - only players on your Wi-Fi can join.").withStyle(ChatFormatting.GRAY), this.font)
+				.setMaxWidth(textMax).setCentered(true));
+		} else if (status == LanLink.Status.ACTIVE && LanLink.getPublicAddress() != null) {
+			String domain = LanLink.getPublicAddress();
+			String ip = LanLink.getPublicIpAddress();
+			String primary = ip != null ? ip : domain;
+			content.addChild(new StringWidget(Component.translatableWithFallback("lanlink.status.active", "Public address active")
+				.withStyle(ChatFormatting.GREEN, ChatFormatting.BOLD), this.font));
+			content.addChild(new StringWidget(Component.literal(primary).withStyle(ChatFormatting.GREEN), this.font).setMaxWidth(textMax));
+			if (ip == null) {
+				content.addChild(Button.builder(Component.translatableWithFallback("lanlink.copy_address_short", "Copy address"),
+					button -> this.copyAddress(button, primary)
+				).width(Math.min(200, textMax)).tooltip(Tooltip.create(Component.literal(primary))).build());
 			} else {
 				// Both forms are available: keep them on one row to save vertical space.
-				String alternative = LanLink.getPublicAddress();
 				LinearLayout copyRow = content.addChild(LinearLayout.horizontal().spacing(8));
 				int copyWidth = Math.min(150, (textMax - 8) / 2);
-				copyRow.addChild(Button.builder(Component.translatableWithFallback("lanlink.copy_ip", "Copy Relay IP"), button ->
-					this.minecraft.keyboardHandler.setClipboard(primary)
+				copyRow.addChild(Button.builder(Component.translatableWithFallback("lanlink.copy_ip", "Copy Relay IP"),
+					button -> this.copyAddress(button, primary)
 				).width(copyWidth).tooltip(Tooltip.create(Component.literal(primary))).build());
-				copyRow.addChild(Button.builder(Component.translatableWithFallback("lanlink.copy_domain", "Copy Relay Domain"), button ->
-					this.minecraft.keyboardHandler.setClipboard(alternative)
-				).width(copyWidth).tooltip(Tooltip.create(Component.literal(alternative))).build());
+				copyRow.addChild(Button.builder(Component.translatableWithFallback("lanlink.copy_domain", "Copy Relay Domain"),
+					button -> this.copyAddress(button, domain)
+				).width(copyWidth).tooltip(Tooltip.create(Component.literal(domain))).build());
 			}
+			content.addChild(new MultiLineTextWidget(Component.translatableWithFallback("lanlink.status.active.hint",
+				"Friends: Multiplayer -> Direct Connection -> paste the address.").withStyle(ChatFormatting.GRAY), this.font)
+				.setMaxWidth(textMax).setCentered(true));
 		} else if (status == LanLink.Status.CONNECTING) {
-			content.addChild(new StringWidget(Component.translatableWithFallback("lanlink.status.connecting", "Getting a public address...").withStyle(ChatFormatting.YELLOW), this.font).setMaxWidth(textMax));
+			content.addChild(new StringWidget(Component.translatableWithFallback("lanlink.status.connecting", "Getting a public address...")
+				.withStyle(ChatFormatting.YELLOW), this.font).setMaxWidth(textMax));
+			content.addChild(new MultiLineTextWidget(Component.translatableWithFallback("lanlink.status.connecting.hint",
+				"This usually takes a few seconds.").withStyle(ChatFormatting.GRAY), this.font)
+				.setMaxWidth(textMax).setCentered(true));
 		} else if (status == LanLink.Status.FAILED) {
-			content.addChild(new StringWidget(Component.translatableWithFallback("lanlink.status.failed", "Public address failed: %s", String.valueOf(LanLink.getLastError())).withStyle(ChatFormatting.RED), this.font).setMaxWidth(textMax));
+			String error = LanLink.getLastError();
+			String failure = error != null && !error.isBlank() ? error : "the relay connection closed";
+			content.addChild(new MultiLineTextWidget(Component.translatableWithFallback("lanlink.status.failed",
+				"Public address failed: %s", failure).withStyle(ChatFormatting.RED), this.font)
+				.setMaxWidth(textMax).setCentered(true));
+			content.addChild(new MultiLineTextWidget(Component.translatableWithFallback("lanlink.status.failed.hint",
+				"Friends on your Wi-Fi can still join via LAN.").withStyle(ChatFormatting.GRAY), this.font)
+				.setMaxWidth(textMax).setCentered(true));
+		} else {
+			content.addChild(new MultiLineTextWidget(Component.translatableWithFallback("lanlink.status.pending",
+				"A public address is created when you start LAN.").withStyle(ChatFormatting.GRAY), this.font)
+				.setMaxWidth(textMax).setCentered(true));
 		}
 
 		LinearLayout footer = this.layout.addToFooter(LinearLayout.horizontal().spacing(8));
-		this.applyButton = footer.addChild(Button.builder(Component.translatableWithFallback("lanlink.start", "Start LAN"), button -> this.applyChanges(server)).build());
-		footer.addChild(Button.builder(CommonComponents.GUI_CANCEL, button -> this.onClose()).build());
+		int footerWidth = Math.max(90, Math.min(150, (this.width - 40) / 2));
+		this.applyButton = footer.addChild(Button.builder(Component.translatableWithFallback("lanlink.start", "Start LAN"),
+			button -> this.applyChanges(server)).width(footerWidth).build());
+		footer.addChild(Button.builder(CommonComponents.GUI_CANCEL, button -> this.onClose()).width(footerWidth).build());
 
 		this.layout.visitWidgets(this::addRenderableWidget);
 		this.updatePortControlsState();
@@ -253,6 +293,28 @@ public class LanLinkScreen extends MultiplayerOptionsScreen {
 	@Override
 	protected void repositionElements() {
 		this.layout.arrangeElements();
+	}
+
+	@Override
+	public void tick() {
+		super.tick();
+		if (this.copiedButton != null && Util.getMillis() >= this.copiedUntil) {
+			this.copiedButton.setMessage(this.copiedOriginal);
+			this.copiedButton = null;
+			this.copiedOriginal = null;
+		}
+	}
+
+	/** Copies the address and briefly turns the button into a "Copied!" confirmation. */
+	private void copyAddress(Button button, String value) {
+		this.minecraft.keyboardHandler.setClipboard(value);
+		if (this.copiedButton != null && this.copiedButton != button) {
+			this.copiedButton.setMessage(this.copiedOriginal);
+		}
+		this.copiedButton = button;
+		this.copiedOriginal = button.getMessage();
+		this.copiedUntil = Util.getMillis() + 1500L;
+		button.setMessage(COPIED);
 	}
 
 	private void applyChanges(IntegratedServer server) {

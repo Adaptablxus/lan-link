@@ -79,6 +79,11 @@ public final class LanLink {
 		return lastError;
 	}
 
+	/** The local Wi-Fi address (192.168.x.x) other devices on the same network can reach. */
+	public static String getLanAddress() {
+		return localLanAddress();
+	}
+
 	/** Starts a tunnel to the given local port, unless one is already running for it. */
 	public static synchronized void ensureTunnel(int localPort) {
 		Session session = currentSession;
